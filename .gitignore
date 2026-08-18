@@ -1,0 +1,16 @@
+venv/
+__pycache__/
+*.pyc
+
+.env
+
+uploads/
+frontend/node_modules/
+frontend/dist/
+
+*.onnx
+*.pt
+
+note.pdf
+
+.vscode/
