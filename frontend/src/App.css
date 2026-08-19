@@ -83,10 +83,43 @@ h1 {
   font-size: 16px;
 }
 
+.answer-card{
+  margin-top: 35px;
+}
+
+.answer{
+  padding: 20px;
+  border: 1px solid #ddd;
+  border-radius: 12px;
+  background: #191717;
+  text-align: left;
+  line-height: 1.6;
+
+}
+
+.answer{
+  margin: 0 0 12px;
+}
+
+.answer p:last-child {
+  margin-bottom: 0;
+}
+
+.answer ul,
+.answer ol {
+  padding-left: 25px;
+}
+
+.answer code {
+  background: #eee;
+  padding: 2px 5px;
+  border-radius: 4px;
+}
 .source {
   display: inline-block;
   margin: 5px;
   padding: 6px 10px;
+   border: 1px solid #ddd;
   border-radius: 6px;
-  background: #2a2626;
+  background: #191717;
 }
