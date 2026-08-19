@@ -15,7 +15,7 @@ client = genai.Client(
 # Chunking
 # -------------------------
 
-def create_chunks(text, chunk_size=500, overlap=50):
+def create_chunks(text, chunk_size=1000, overlap=100):
 
     chunks = []
     start = 0
@@ -82,18 +82,30 @@ def build_index(pdf_path):
         for chunk in chunks
     ]
 
+    def create_embeddings(texts, batch_size=100):
+        all_embeddings =[]
 
-    result = client.models.embed_content(
-        model="gemini-embedding-001",
-        contents=texts
-    )
+        for start in range(0, len(texts), batch_size):
 
+            batch =texts[start:start + batch_size]
 
-    embeddings = np.array(
-        [item.values for item in result.embeddings],
-        dtype="float32"
-    )
+            result = client.models.embed_content(
+                model="gemini-embedding-001",
+                contents=batch
+            )
 
+            batch_embeddings=[
+                item.values
+                for item in result.embeddings
+            ]
+
+            all_embeddings.extend(batch_embeddings)
+        return np.array(
+            all_embeddings,
+            dtype="float32"
+        )
+
+    embeddings = create_embeddings(texts)
 
     # -------------------------
     # Create FAISS index
