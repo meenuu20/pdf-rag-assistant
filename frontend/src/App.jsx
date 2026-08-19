@@ -1,3 +1,4 @@
+import ReactMarkdown from "react-markdown";
 import { useState } from "react";
 import "./App.css";
 
@@ -83,6 +84,7 @@ function App() {
 
       setAnswer(data.answer);
       setSources(data.sources ||[]);
+      setQuestion("");
     } catch (error) {
       setError("Unable to get an answer. Please try again later.");
       setAnswer("Something went wrong.");
@@ -160,7 +162,7 @@ function App() {
             <h2>Answer</h2>
             
             <p className ="answer">
-              {answer}
+              <ReactMarkdown>{answer}</ReactMarkdown>
             </p>
             {sources.length > 0 && (
               <div className="sources">
