@@ -4,12 +4,16 @@ import faiss
 import numpy as np
 
 from google import genai
+from sentence_transformers import SentenceTransformer
 
 
 client = genai.Client(
     api_key=os.getenv("GEMINI_API_KEY")
 )
 
+embedding_model= SentenceTransformer(
+    "sentence-transformers/all-MiniLM-L6-v2"
+)
 
 # -------------------------
 # Chunking
@@ -32,6 +36,14 @@ def create_chunks(text, chunk_size=1000, overlap=100):
 
     return chunks
 
+def create_embeddings(texts):
+
+    embeddings = embedding_model.encode(
+        texts,
+        convert_to_numpy= True,
+        normalize_embeddings=True
+    )
+    return embeddings.astype("float32")
 
 # -------------------------
 # Load PDF
@@ -82,28 +94,6 @@ def build_index(pdf_path):
         for chunk in chunks
     ]
 
-    def create_embeddings(texts, batch_size=100):
-        all_embeddings =[]
-
-        for start in range(0, len(texts), batch_size):
-
-            batch =texts[start:start + batch_size]
-
-            result = client.models.embed_content(
-                model="gemini-embedding-001",
-                contents=batch
-            )
-
-            batch_embeddings=[
-                item.values
-                for item in result.embeddings
-            ]
-
-            all_embeddings.extend(batch_embeddings)
-        return np.array(
-            all_embeddings,
-            dtype="float32"
-        )
 
     embeddings = create_embeddings(texts)
 
@@ -113,7 +103,7 @@ def build_index(pdf_path):
 
     dimension = embeddings.shape[1]
 
-    index = faiss.IndexFlatL2(dimension)
+    index = faiss.IndexFlatIP(dimension)
 
     index.add(embeddings)
 
@@ -124,44 +114,44 @@ def build_index(pdf_path):
 # RAG function
 # -------------------------
 
-def ask_question(question,index,chunks
-):
+def ask_question(question,index,chunks):
 
-    query_result = client.models.embed_content(
-        model="gemini-embedding-001",
-        contents=question
-    )
+    # -------------------------
+    # Embed user question
+    # -------------------------
 
-
-    query_embedding = np.array(
-        [query_result.embeddings[0].values],
-        dtype="float32"
-    )
+    query_embedding = embedding_model.encode(
+        [question],
+        convert_to_numpy= True,
+        normalize_embeddings=True
+    ).astype("float32")
 
 
     # Top 3
-    distances, indices = index.search(
+    similarities, indices = index.search(
         query_embedding,
         3
     )
-
+    #print("Similarities:", similarities[0])
 
     # Similarity threshold
-    threshold = 0.7
+    threshold = 0.3
 
     retrieved_chunks = []
 
 
-    for distance, index_id in zip(
-        distances[0],
+    for similarity, index_id in zip(
+        similarities[0],
         indices[0]
     ):
 
-        if distance < threshold:
+        if similarity >= threshold:
 
-            retrieved_chunks.append(
-                chunks[index_id]
-            )
+            retrieved_chunks.append({
+                "text":chunks[index_id]["text"],
+                "page": chunks[index_id]["page"],
+                "similarity": float(similarity)
+            })
 
 
     # No relevant information
@@ -179,7 +169,8 @@ def ask_question(question,index,chunks
     for chunk in retrieved_chunks:
 
         context_parts.append(
-            f"Page {chunk['page']}:\n"
+            f"Page {chunk['page']}"
+            f"(similarity: {chunk['similarity']:.2f}):\n"
             f"{chunk['text']}"
         )
 
@@ -200,19 +191,20 @@ Context:
 Question:
 {question}
 
-If the answer is not present in the context,
-say:
-
-"I don't have enough information in the
-provided document."
-
-Mention the page number when possible.
+Instructions:
+- Use only the provided context.
+- Do not use outside knowledge.
+- If the answer is not present in the context, say:
+  "I don't have enough information in the provided document."
+- Mention the page number(s) that directly support your answer.
+- Do not mention a page unless the information used in the answer
+  actually comes from that page.
 """
 
 
     # Generate answer
     response = client.models.generate_content(
-        model="gemini-3.5-flash",
+        model="gemini-3.6-flash",
         contents=prompt
     )
 
@@ -227,6 +219,7 @@ Mention the page number when possible.
         if page not in sources:
             sources.append(page)
 
+    sources.sort()
 
     return {
         "answer": response.text,
