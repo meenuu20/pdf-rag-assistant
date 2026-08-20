@@ -4,15 +4,15 @@ import faiss
 import numpy as np
 
 from google import genai
-from sentence_transformers import SentenceTransformer
+from fastembed import TextEmbedding
 
 
 client = genai.Client(
     api_key=os.getenv("GEMINI_API_KEY")
 )
 
-embedding_model= SentenceTransformer(
-    "sentence-transformers/all-MiniLM-L6-v2"
+embedding_model= TextEmbedding(
+    model_name="BAAI/bge-small-en-v1.5"
 )
 
 # -------------------------
@@ -38,13 +38,14 @@ def create_chunks(text, chunk_size=1000, overlap=100):
 
 def create_embeddings(texts):
 
-    embeddings = embedding_model.encode(
-        texts,
-        convert_to_numpy= True,
-        normalize_embeddings=True
+    embeddings = list(
+        embedding_model.passage_embed(texts)
     )
-    return embeddings.astype("float32")
 
+    return np.array(
+        embeddings,
+        dtype="float32"
+    )
 # -------------------------
 # Load PDF
 # -------------------------
@@ -120,11 +121,12 @@ def ask_question(question,index,chunks):
     # Embed user question
     # -------------------------
 
-    query_embedding = embedding_model.encode(
-        [question],
-        convert_to_numpy= True,
-        normalize_embeddings=True
-    ).astype("float32")
+    query_embedding = np.array(
+        list(
+            embedding_model.query_embed(question)
+        ),
+        dtype="float32"
+    )   
 
 
     # Top 3
