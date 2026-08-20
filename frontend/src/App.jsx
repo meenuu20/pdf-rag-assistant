@@ -44,6 +44,8 @@ function App() {
 
       setUploadMessage(data.message);
     }catch (error){
+      console.error("Upload error:", error);
+
       setUploadMessage(
         "Unable to upload the PDF."
       );
